@@ -66,8 +66,8 @@ class SaltstackHandler(SensuHandler):
         if salt_sls:
             self.salt_api_post(salt_sls, func_type='sls')
 
-        # if salt_orch:
-        #     self.salt_api_post(salt_orch, func_type='orch')
+        if salt_orch:
+            self.salt_api_post(salt_orch, func_type='orch')
 
     def salt_api_post(self, path, func_type='sls'):
         if func_type == 'sls':
