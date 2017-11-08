@@ -1,0 +1,14 @@
+{
+  "handlers": {
+    "saltstack": {
+      "command": "/etc/sensu/handlers/handler_saltstack.py",
+      "type": "pipe"
+    }
+  },
+  "saltstack": {
+    "username": "saltapiuser",
+    "password": "saltapiuser",
+    "url": "http://saltstack:8000",
+    "eauth": "pam"
+  }
+}
