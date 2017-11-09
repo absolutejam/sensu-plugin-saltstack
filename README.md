@@ -40,8 +40,8 @@ allowing for the addition of wildcards `*`, domain names, etc. in the event
 that the Sensu client has a slightly different name to the Salt minion.
 
 It will first look in the check definition for the `salt_clientmatch` key,
-which should be something like `{{ name }}.mydomain.local` (Assuming that
-your Salt minion name matches the above with `{{ name }}` substituted). If
+which should be something like `__client__.mydomain.local` (Assuming that
+your Salt minion name matches the above with `__client__` substituted). If
 that isn't defined, it will look for a setting in the handler definition
 called `clientmatch`. Finally, it will give up and just use the name from the 
 checkk result.

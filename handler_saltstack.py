@@ -31,7 +31,7 @@ class SaltstackHandler(SensuHandler):
     def get_client_name(self):
         '''
         Allow the client name to be inserted into a string, replacing
-        the token '{{ name }}'. This allows the sensu client to have
+        the token '__client__'. This allows the sensu client to have
         a different name to the Salt minion, eg. if the Sensu client is
         only a hostname and the Salt minion is FQDN.
 
@@ -43,13 +43,14 @@ class SaltstackHandler(SensuHandler):
         check_clientmatch = self.event['check'].get('salt_clientmatch')
         config_clientmatch = self.salt_settings.get('clientmatch')
         client_name = self.event['client']
+        client_sub = '(?i)__client__'
 
         if check_clientmatch:
-            return re.sub('(?i){{ name }}',
+            return re.sub(client_sub, 
                           client_name,
                           check_clientmatch)
         elif config_clientmatch:
-            return re.sub('(?i){{ name }}',
+            return re.sub(client_sub,
                           client_name,
                           config_clientmatch)
         else:
