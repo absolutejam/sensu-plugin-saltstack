@@ -121,7 +121,7 @@ file size, etc.
 
 # TODOs
 
-  [ ] Add timeout when waiting for API
-  [ ] Add HTTPS support (with cert checking?)
-  [ ] Make the api calls more flexible 
-  [x] Pass event data as pillar data
+  - [ ] Add timeout when waiting for API
+  - [ ] Add HTTPS support (with cert checking?)
+  - [ ] Make the api calls more flexible 
+  - [x] Pass event data as pillar data
