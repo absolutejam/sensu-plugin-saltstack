@@ -30,25 +30,98 @@ Example config:
     "username": "saltapiuser",
     "password": "saltapiuser",
     "url": "http://saltstack:8000",
-    "eauth": "pam"
+    "eauth": "pam",
+    "clientmatch": "__name__.mydomain.local"
   }
 }
 ```
 
+### Name matching
+
 Additionally, the handler can substitute the client's name into a string,
-allowing for the addition of wildcards `*`, domain names, etc. in the event
-that the Sensu client has a slightly different name to the Salt minion.
+allowing it to be altered to match the Salt minion name if it differs. It
+achieves this by substituting the salt client `name` attribute into a string,
+replacing an instance of `__name__`, allowing for addition of wildcards `*`,
+a domain names, prefixs etc. to be passed to the salt run command. For
+example, if the salt minion name is `webserver01` but the Salt minion name is
+`webserver01.webfarm.local`, you can use `__name__.webfarm.local`.
 
-It will first look in the check definition for the `salt_clientmatch` key,
-which should be something like `__client__.mydomain.local` (Assuming that
-your Salt minion name matches the above with `__client__` substituted). If
-that isn't defined, it will look for a setting in the handler definition
-called `clientmatch`. Finally, it will give up and just use the name from the 
-checkk result.
+To substitute this value, the handler will look in 3 places, stopping upon 
+the first instance it finds:
 
+- It will first look in the check definition for the `salt_clientmatch` key.
+- Next it will look in the client definition for the `salt_clientmatch` key.
+- Finally, it will look in the handler configuration for the `clientmatch` key
+  with the Salt dictionary.
+
+This allows for granular overriding of the client name property.
+
+
+### Event data as pillar data
+
+The [event data](https://sensuapp.org/docs/latest/reference/events.html#example-event)
+ is available within the `event` pillar, which can be accessed within a `.sls`
+ by including the jinja `{{ pillar.get('event') }}`. Please see example usage
+ below for more info.
+
+## Example usage
+
+Below is a basic disk check, that will warn on disks being over 80% full and 
+alert as critical on 90% usage. As you can see, `salt_sls` key points to
+`remediation.disks` which would be equivalent to to the file 
+`salt://remediation/disks.sls` on the Salt master.
+
+```
+{
+  "checks": {
+    "disk-free-win": {
+      "command": ":::ruby::: C:\\\\opt\\\\sensu\\\\check-scripts\\\\check-windows-disk.rb -w :::vars.disk.warn|80::: -c :::vars.disk.crit|90:::",
+      "description": "Checks how full disks are",
+      "handlers": [
+        "saltstack"
+      ],
+      "interval": 60,
+      "occurrences": 1,
+      "refresh": 3600,
+      "salt_sls": "remediation.disks",
+      "subscribers": [
+        "winservers"
+      ]
+    }
+  }
+}
+```
+
+Within the remediation state file, you could have the following:
+
+```
+{% set event = pillar.get('event') %}
+
+{% set temp_dirs = ['C:\\Windows\\Temp', 'C:\\my\\app\\logs'] %}
+
+"Clear files in temp dir {{ temp_dir }}":
+  file.directory:
+    - name: {{ temp_dir }}
+    - clean: True
+
+{% endfor %}
+
+"Send message to Slack":
+  slack.post_message:
+    - channel: '#autoremediation'
+    - from_name: SaltStack
+    - message: |
+        Disk usage remediation running on *{{ event['client']['name'] }}*
+        Sensu reported: {{ event['check']['output'] }}
+    - api_key: myapikey
+```
+
+And include any other steps, such as restarting services, changing page 
+file size, etc.
 
 # TODOs
 
-  - Add timeout when waiting for API
-  - Add HTTPS support (with cert checking?)
-  - Make the api calls more flexible 
+  [ ] Add timeout when waiting for API
+  [ ] Add HTTPS support (with cert checking?)
+  [ ] Make the api calls more flexible 
+  [x] Pass event data as pillar data

@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 from sensu_plugin.handler import SensuHandler
-from pprint import pprint
 import re
+import json
 import requests
+
 
 class SaltstackHandler(SensuHandler):
     '''
@@ -14,11 +15,24 @@ class SaltstackHandler(SensuHandler):
         'password'
     ]
 
+    def handle(self):
+        self.salt_settings = self.validate_settings()
+
+        salt_sls = self.event['check'].get('salt_sls')
+        salt_orch = self.event['check'].get('salt_orch')
+
+        if salt_sls:
+            self.salt_api_post(salt_sls, func_type='sls')
+
+        if salt_orch:
+            self.salt_api_post(salt_orch, func_type='orch')
+
     def validate_settings(self):
         '''
         Validate that all mandatory settings have been defined.
         '''
         salt_settings = self.settings.get('saltstack')
+
         if not salt_settings:
             self.bail('no salt settings dict defined')
 
@@ -42,7 +56,7 @@ class SaltstackHandler(SensuHandler):
         '''
         check_clientmatch = self.event['check'].get('salt_clientmatch')
         config_clientmatch = self.salt_settings.get('clientmatch')
-        client_name = self.event['client']
+        client_name = self.event['client'].get('name')
         client_sub = '(?i)__client__'
 
         if check_clientmatch:
@@ -56,20 +70,6 @@ class SaltstackHandler(SensuHandler):
         else:
             return client_name
             
-
-    def handle(self):
-        self.salt_settings = self.validate_settings()
-        
-
-        salt_sls = self.event['check'].get('salt_sls')
-        salt_orch = self.event['check'].get('salt_orch')
-
-        if salt_sls:
-            self.salt_api_post(salt_sls, func_type='sls')
-
-        if salt_orch:
-            self.salt_api_post(salt_orch, func_type='orch')
-
     def salt_api_post(self, path, func_type='sls'):
         if func_type == 'sls':
             post_data = {
@@ -78,10 +78,14 @@ class SaltstackHandler(SensuHandler):
                 'eauth': self.salt_settings.get('eauth', 'auto'),
                 'client': 'local',
                 'tgt': self.get_client_name(),
-                'fun': 'state.apply',
-                'arg': [ path ]
+                'fun': 'state.sls',
+                'arg': [ path ],
+                'kwarg': {
+                     "pillar": {
+                          "event": self.event
+                      }
+                 }
             }
-            pprint(post_data)
         else:
             post_data = {
                 'username': self.salt_settings['username'],
@@ -89,12 +93,16 @@ class SaltstackHandler(SensuHandler):
                 'eauth': self.salt_settings.get('eauth', 'auto'),
                 'client': 'runner',
                 'fun': 'state.orch',
-                'arg': [ path ]
+                'arg': [ path ],
+                'kwarg': {
+                     "pillar": {
+                          "event": self.event
+                      }
+                 }
             }
 
         session = requests.Session()
         resp = session.post(self.salt_settings['url'] + '/run', 
                             json=post_data)
-        pprint(resp.json())
 
 SaltstackHandler()
