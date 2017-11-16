@@ -15,17 +15,25 @@ class SaltstackHandler(SensuHandler):
         'password'
     ]
 
+
     def handle(self):
         self.salt_settings = self.validate_settings()
 
-        salt_sls = self.event['check'].get('salt_sls')
-        salt_orch = self.event['check'].get('salt_orch')
+        if self.event['check']['name'] == 'keepalive':
+            # Get the /keepalive/ sls/orch path from the client config
+            salt_sls = self.event['client'].get('salt', {}).get('keepalive_sls')
+            salt_orch = self.event['client'].get('salt', {}).get('keepalive_orch')
+        else:
+            # Get the sls/orch path from the check config
+            salt_sls = self.event['check'].get('salt_sls')
+            salt_orch = self.event['check'].get('salt_orch')
 
         if salt_sls:
             self.salt_api_post(salt_sls, func_type='sls')
 
         if salt_orch:
             self.salt_api_post(salt_orch, func_type='orch')
+
 
     def validate_settings(self):
         '''
@@ -42,6 +50,7 @@ class SaltstackHandler(SensuHandler):
         
         return salt_settings
 
+
     def get_client_name(self):
         '''
         Allow the client name to be inserted into a string, replacing
@@ -54,19 +63,26 @@ class SaltstackHandler(SensuHandler):
         settings, and finally just use the client name from the check output if
         neither have been defined.
         '''
-        check_clientmatch = self.event['check'].get('salt_clientmatch')
-        config_clientmatch = self.salt_settings.get('clientmatch')
+
         client_name = self.event['client'].get('name')
         client_sub = '(?i)__client__'
+
+        check_clientmatch = self.event['check'].get('salt_clientmatch')
+        client_config_clientmatch = self.event['client'].get('salt', {}).get('clientmatch')
+        server_config_clientmatch = self.salt_settings.get('clientmatch')
 
         if check_clientmatch:
             return re.sub(client_sub, 
                           client_name,
                           check_clientmatch)
-        elif config_clientmatch:
+        elif client_config_clientmatch:
             return re.sub(client_sub,
                           client_name,
-                          config_clientmatch)
+                          client_config_clientmatch)
+        elif server_config_clientmatch:
+            return re.sub(client_sub,
+                          client_name,
+                          server_config_clientmatch)
         else:
             return client_name
             
